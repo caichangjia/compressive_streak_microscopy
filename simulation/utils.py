@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-"""
-Utility functions for running simulations.
-@author: @caichangjia
-"""
 import cv2
 import h5py
 import logging
@@ -30,6 +26,8 @@ def save_movie(fnames, mov):
     else:
         raise Exception('can not load this format')
     return mov
+            
+
 
 def load_movie(fnames):
     if '.hdf5' in fnames:
@@ -58,7 +56,8 @@ def play(mov, fr=400, backend='opencv', magnification=1, interpolation=cv2.INTER
             frame = (offset + frame - minmov) * gain / (maxmov - minmov)
             cv2.imshow('frame', frame)
             if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
-                break            
+                break
+            
     cv2.waitKey(100)
     cv2.destroyAllWindows()
     for i in range(10):
@@ -84,15 +83,15 @@ def newplot(image):
 
 def generate_coded_img(mov, coding, n):
     mov_new = []
-    m_temp = np.zeros((128, 128))
+    m_tmp = np.zeros((128, 128))
     m_img = np.zeros((n, 128, 128))
     for idx, m in enumerate(mov):
         m_coded = m * coding[idx % n]
         if idx % n == 0:
-            m_temp = np.zeros((128, 128))
-        m_temp = m_temp + m_coded
+            m_tmp = np.zeros((128, 128))
+        m_tmp = m_tmp + m_coded
         if idx % n == n - 1:
-            mov_new.append(m_temp)
+            mov_new.append(m_tmp)
         if idx < n:
             m_img[idx] = m_coded
     return np.array(mov_new), m_img
@@ -137,14 +136,22 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5, update_shape=True):
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
     #nb = b.shape[1]  # number of background components
-    ind_A = A>1e-10
+    if bSiz is not None:
+        if isinstance(bSiz, (int, float)):
+             bSiz = [bSiz] * len(dims)
+        ind_A = nd.filters.uniform_filter(np.reshape(A,
+                dims + (K,), order='F'), size=bSiz + [0])
+        ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
+    else:
+        ind_A = A>1e-10
+
     ind_A = spr.csc_matrix(ind_A)  # indicator of nonnero pixels
 
     def HALS4activity(Yr, A, C, iters=2):
         U = A.T.dot(Yr)
         V = A.T.dot(A) + np.finfo(A.dtype).eps
         for _ in range(iters):
-            for m in range(len(U)):  # neurons
+            for m in range(len(U)):  # neurons and background
                 C[m] = np.clip(C[m] + (U[m] - V[m].dot(C)) /
                                V[m, m], 0, np.inf)
         return C
@@ -158,8 +165,13 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5, update_shape=True):
                 A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
                                            ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
                                             V[m, m]), 0, np.inf)
+            # for m in range(nb):  # background
+            #     A[:, K + m] = np.clip(A[:, K + m] + ((U[K + m] - V[K + m].dot(A.T)) /
+            #                                          V[K + m, K + m]), 0, np.inf)
         return A
 
+    #Ab = np.c_[A, b]
+    #Cf = np.r_[C, f.reshape(nb, -1)]
     Ab = A
     Cf = C
     for _ in range(maxIter):
@@ -169,6 +181,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5, update_shape=True):
         if update_shape:
             Ab = HALS4shape(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
 
+    #return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
     return Ab, Cf
 
 def mov_interpolation(mov, factor=5, method='nn'):
@@ -209,21 +222,20 @@ def generate_streak_mov(mov, cr=10, size=5):
     mov_new = []
     nx = mov.shape[1]
     ny = mov.shape[2]
-    m_temp = np.zeros((nx + padding, ny))
-    m_img = np.zeros((2 * n, nx + padding, ny))
+    m_tmp = np.zeros((nx, ny))
+    m_img = np.zeros((n, nx, ny))
 
     for idx, m in enumerate(mov):
-        m_coded = np.zeros((nx + padding, ny))
-        m_coded[:nx] = m 
+        m_coded = m
         nn = idx % n
         affine_matrix = np.array([[1, 0, 0], [0, 1, nn * speed]])  # note the first element to x axis
-        m_coded = cv2.warpAffine(m_coded.copy(),affine_matrix,(ny, nx+padding))
+        m_coded = cv2.warpAffine(m_coded.copy(),affine_matrix,(ny, nx), borderMode=3)  # periodic boundary for borderMode
         
         if idx % n == 0:
-            m_temp = np.zeros((nx + padding, ny))
-        m_temp = m_temp + m_coded
+            m_tmp = np.zeros((nx, ny))
+        m_tmp = m_tmp + m_coded
         if idx % n == n - 1:
-            mov_new.append(m_temp)
+            mov_new.append(m_tmp)
         if idx < n:
             m_img[idx] = m_coded
     mov_new = np.array(mov_new)
@@ -282,6 +294,39 @@ def compute_spnr(signals, spikes):
         spnr.append(np.mean(temp) / noi)
         noise.append(noi)
     return np.array(spnr), np.array(noise)
+
+def imshow_label(mask):
+    plt.figure()
+    plt.imshow(mask.sum(0), cmap='gray')    
+    for j in range(len(mask)):
+        y_list, x_list = np.where(mask[j] > 0)
+        plt.text(x_list.min(), y_list.min(), s=f'{j}', c='w')  
+
+# def scatter_boxplot(data):
+#     xx = np.array([1.0]*len(data))
+#     xx += np.random.normal(scale=0.005, size=xx.shape)
+#     plt.boxplot(data, showfliers=False)
+#     plt.xticks([])
+#     plt.scatter(xx, data, s=8, c='black', alpha=0.8)
+
+def scatter_boxplot(data, xtick=None, ylabel=None, xlabel=None):
+    plt.boxplot(data, showfliers=False)
+    if xtick is None:
+        plt.xticks([])
+    else:
+        plt.xticks(list(range(1, len(data)+1)), xtick)
+    
+    if ylabel is not None:
+        plt.ylabel(ylabel)
+    
+    if xlabel is not None:
+        plt.xlabel(xlabel)
+    
+    for i in range(len(data)):
+        xx = np.array([i+1.0]*len(data[i]))
+        xx += np.random.normal(scale=0.005, size=xx.shape)
+        plt.scatter(xx, data[i], s=8, c='black', alpha=0.8)
+
         
 ### VolPy functions
 def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=100, threshold_method='adaptive_threshold', 
