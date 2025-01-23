@@ -6,5 +6,6 @@ We tested reconstruction algorthms (including ridge regression, weighted averagi
 
 
 <p align="center" width="100%">
-<img src="https://github.com/user-attachments/assets/3f3bd9a5-34ff-403f-a388-9c73fa6d0076" width="750" />
+<img src="https://github.com/user-attachments/assets/8381c58e-8ad1-4e7c-876f-94da1e1edc28" width="750" />
 </p>
+
