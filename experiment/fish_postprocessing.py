@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
-This file is used to perform postprocessing of the streak movie for the fish experiment
+This file is used to perform postprocessing of the streak movie for the fish experiment.
 @author: @caichangjia
 """
 import cv2
-import caiman as cm
+#import caiman as cm
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -16,6 +16,7 @@ from reconstruction import ReconstructionFish
 
 mpl.rcParams.update({'pdf.fonttype' : 42, 
                      'ps.fonttype' : 42, 
+                     'font.size' : 18, 
                      'legend.frameon' : False, 
                      'axes.spines.right' :  False, 
                      'axes.spines.top' : False, 
@@ -93,8 +94,8 @@ lim_y = [600, 1400]#[::-1]
 lim_x = [1200, 1800]
 wf_save = wf[:, lim_y[0]:lim_y[1], lim_x[0]:lim_x[1]]
 tg_save = tg[:, lim_y[0]:lim_y[1], lim_x[0]:lim_x[1]]
-cm.movie(wf_save, fr=5).save(save_result_folder +'/wf_movie_3.avi')
-cm.movie(tg_save, fr=5).save(save_result_folder +'/tg_movie_4.avi')
+# cm.movie(wf_save, fr=50).resize(1, 1, 0.1).save(save_result_folder +'/wf_movie_3_resize_0.1.avi')
+# cm.movie(tg_save, fr=50).save(save_result_folder +'/tg_movie_4_50Hz.avi')
 #%%
 mean_img = wf.mean(0)
 std_img = wf.std(0)
@@ -119,6 +120,8 @@ plt.imshow(std_img, cmap='gray')
 plt.scatter(xy[:, 1], xy[:, 0], color='red', alpha=0.5, s=0.5)
 plt.title('Std img')
 plt.axis('off')
+for i in range(36):
+    plt.text(xy[i, 1], xy[i, 0], s=f'{i}', color='red')
 
 #%% 
 spatial = []
@@ -166,24 +169,29 @@ plt.imshow(tg_mean_img1, cmap='gray', vmax=np.percentile(tg_mean_img1, 99.9))
 plt.scatter(xy[:, 1]-lim_x[0], xy[:, 0]-lim_y[0], color='red', alpha=0.5, s=10, marker='o')
 plt.scatter(xy_delete[:, 1]-lim_x[0], xy_delete[:, 0]-lim_y[0], color='red', alpha=0.5, s=10, marker='x')
 plt.title('Targeted mean img')
+for idx, i in enumerate([2, 3, 4, 5, 6, 8, 14]):
+    plt.text(xy[i, 1]-lim_x[0], xy[i, 0]-lim_y[0], idx)
+
 plt.axis('off')
 plt.subplot(2, 2, 4)
 plt.imshow(streak_mean_img1, cmap='gray', vmax=np.percentile(streak_mean_img1, 99.9))
 plt.scatter(xy[:, 1]-lim_x[0], xy[:, 0]-lim_y[0], color='red', alpha=0.5, s=10, marker='o')
 plt.scatter(xy_delete[:, 1]-lim_x[0], xy_delete[:, 0]-lim_y[0], color='red', alpha=0.5, s=10, marker='x')
+for i, idx in enumerate([2, 3, 4, 5, 6, 8, 14]):
+    plt.text(xy[idx, 1]-lim_x[0], xy[idx, 0]-lim_y[0], s=f'{i}')
 plt.title('Streak mean img')
 plt.axis('off')
 plt.tight_layout()
-plt.savefig(save_result_folder+'/summary_imgs_40Hz_volt_0.04_v1.0.pdf')
+#plt.savefig(save_result_folder+'/summary_imgs_20Hz_volt_0.04_v3.0.pdf')
 
 #%% reconstruction
-tt = 60
+tt = 60 # time 
 tps = 0
-cr = 10
-volt = 0.04
-ridge_alpha=1
-f_streak  = save_dir + '/streak_20hz_4/streak_20hz_NDTiffStack.tif'
-#f_streak = save_dir + '/streak_40hz_1/streak_40hz_NDTiffStack.tif'
+cr = 10 # compression ratio
+volt = 0.04 # galvo mirror voltage
+
+#f_streak  = save_dir + '/streak_20hz_4/streak_20hz_NDTiffStack.tif'
+f_streak = save_dir + '/streak_40hz_1/streak_40hz_NDTiffStack.tif'
 
 mov = io.imread(f_streak)
 streak_mean_img = mov.mean(0)
@@ -193,24 +201,17 @@ print(cr)
 print(volt)
 
 data = {}
-methods = ['ridge_0.001', 'ridge_0.01', 'ridge_0.1', 'ridge_1', 'ridge_10', 'weighted', 'nmf']
-
+#methods = ['weighted', 'nmf']
+methods = ['ridge']
 for method in methods:
     data[method] = {}
 
 for method in methods:
-    if 'ridge' in method:
-        ridge_alpha = float(method[6:])
-        method_name = method[:5]
-        print(f'Using method: {method_name}')
-        print(ridge_alpha)
-    else:
-        method_name = method
-        print(f'Using method: {method_name}')
-
+    method_name = method
+    print(f'Using method: {method_name}')
     rec = ReconstructionFish(mov, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
                           save_dir=save_dir + name + '\\reconstruction', 
-                          method=method_name, ridge_alpha=ridge_alpha, lasso_alpha=1e-5, plot=False)
+                          method=method_name, plot=False)
     #rec.reconstruct_single_trace(nid=1)
     output = rec.reconstruct_traces()
     rec_trace = np.array([out[0] for out in output])
@@ -226,25 +227,34 @@ for method in methods:
     data[method]['C_result_filtered'] = rec_trace_n    
 
 for method in methods:
-    np.save(f'C:/Users/nico/Desktop/data/zebrafish_7_20_1/result/output/{method}_40Hz_v2.1.npy', data[method])
+    np.save(f'C:/Users/nico/Desktop/data/zebrafish_7_20_1/result/output/{method}_40Hz_v3.0.npy', data[method])
+    
+#%%
+data = {}
+methods = ['ridge', 'weighted', 'nmf']
+for method in methods:
+    d = np.load(f'C:/Users/nico/Desktop/data/zebrafish_7_20_1/result/output/{method}_20Hz_v3.0.npy', allow_pickle=True).item()
+    data[method] = d
     
 #%% check trace of one neuron
 ii = 14
 #for ii in range(36):
 plt.figure(figsize=(6, 8))
-methods = np.array(['ridge_0.1', 'ridge_1', 'ridge_10', 'weighted', 'nmf'])#[np.array([0, 2])]
+methods = np.array(['ridge'])#[np.array([0, 2])]
 for idx, method in enumerate(methods):
     print(method)
     #plt.plot(data[method]['C_result'][ii]+idx*0, alpha=0.5)
-    plt.plot(data[method]['C_result'][ii]+idx*0, alpha=0.5)
+    plt.plot(normalize(data[method]['C_result'][ii])+idx*0, alpha=0.5)
+    plt.plot(np.arange(1, 12001, 10), normalize(data[method]['C_gt'][ii])+idx*0, alpha=0.5)
 plt.legend(methods)
 plt.title(f'neuron:{ii}')
 plt.show()    
 
     
 #%% the traces are normalized later for visualization
-method = 'ridge_1'
+method = 'ridge'
 rec_trace_n = data[method]['C_result_filtered']
+trace_gt = data[method]['C_gt']
 trace_hp = []
 for tr in rec_trace_n:
     tr_filtered = signal_filter(tr, freq=1, fr=200)
@@ -254,51 +264,73 @@ for tr in rec_trace_n:
     print(tr_filtered.std())
 trace_hp = np.array(trace_hp)
 hp_signal = trace_hp.std(1)
-    
 
 #%% Fig 5c
 from matplotlib.patches import Rectangle
 plt.figure(figsize=(6, 8))
-plt.subplot(1, 2, 1)
-fr = 40
+plt.subplot(2, 1, 1)
+fr = 20
 if fr == 40:
     x = np.arange(0, 60, 0.0025)
     xx = np.arange(0, 60, 0.025)
     st = 35 
 else:
     x = np.arange(0, 60, 0.005)
-    xx = np.arange(0, 60, 0.05)
+    xx = np.arange(0.025, 60+0.025, 0.05)
+    
     st = 40
+    index = np.array([2, 3, 4, 5, 6, 8, 14])
     #x_gt = np.arange(0, 60, 0.05)
 
-for idx, t in enumerate(rec_trace_n):#[index]):
-    t = t / hp_signal[idx]
-    #t = normalize(t)
-    #plt.plot(x, t - idx*5, linewidth=0.5, alpha=0.8, color='C0')
-    plt.plot(x, t - idx*25, linewidth=0.3, alpha=0.8, color='C0')
+for idx, t in enumerate(rec_trace_n[index]):
+    #t = t / hp_signal[index][idx]
+    t = normalize(t)
+    gt = trace_gt[index][idx]
+    gt = normalize(gt)
+    plt.plot(x, t + idx*5, linewidth=0.5, alpha=1, color='C0')
+    plt.plot(xx, gt + idx*5, linewidth=0.5, alpha=1, color='black')
+    plt.text(-7, 5*idx, f'{idx}')
 
-rect = Rectangle([st, -900], 10, 930, alpha=0.5, color='black', fc = 'none', lw = 2)
+
+rect = Rectangle([st, -3], 10, 40, alpha=1, color='gray', fc = 'none', lw = 2, linestyle='dashed')
 ax = plt.gca()
 ax.add_patch(rect)
-plt.ylabel('Normalized fluorescence')
+ax.spines['left'].set_visible(False)
+#plt.ylabel('Normalized fluorescence')q
+plt.legend(['Reconstructed', 'Reference'], fontsize=14)
 plt.xlabel('Time (s)')
 plt.yticks([])
-plt.title('fluorescence traces plot')
+plt.xlim([0, 60])
+plt.text(-12, 40, 'Neuron #')
+plt.vlines(-1, -0.5, 0.5, color='black', clip_on=False)
+plt.text(-4, -5, '1 unit', rotation='vertical')
+#plt.title('fluorescence traces plot')
 
-plt.subplot(1, 2, 2)
-for idx, t in enumerate(rec_trace_n):#[index]):
-    t = t / hp_signal[idx]
-    #t = normalize(t)
-    #plt.plot(x, t - idx*5, linewidth=0.5, alpha=0.8, color='C0')
-    plt.plot(x, t - idx*25, linewidth=0.3, alpha=0.8, color='C0')
-rect = Rectangle([st, -900], 10, 930, alpha=0.5, color='black', fc = 'none', lw = 2)
+#
+plt.subplot(2, 1, 2)
+for idx, t in enumerate(rec_trace_n[index]):
+    #t = t / hp_signal[index][idx]
+    t = normalize(t)
+    gt = trace_gt[index][idx]
+    gt = normalize(gt)
+    plt.plot(x, t + idx*5, linewidth=0.5, alpha=1, color='C0')
+    plt.plot(xx, gt + idx*5, linewidth=0.5, alpha=1, color='black')
+    plt.text(st-7/6, 5*idx, f'{idx}')
+
+rect = Rectangle([st, -3], 10, 40, alpha=1, color='gray', fc = 'none', lw = 2, linestyle='dashed')
 ax = plt.gca()
 ax.add_patch(rect)
+ax.spines['left'].set_visible(False)
 plt.xlim(st, st+10)
 plt.yticks([])
+plt.xlabel('Time (s)')
+plt.text(st-12/6, 40, 'Neuron #')
+plt.vlines(st-1/6, -0.5, 0.5, color='black', clip_on=False)
+plt.text(st-4/6, -1, '1 unit', rotation='vertical')
 
+plt.tight_layout()
 #plt.savefig(save_result_folder+'/traces_40Hz_volt_0.04_v1.0.pdf')
-plt.savefig(save_result_folder+f'/traces_{fr}hz_volt_0.04_v2.1.pdf')
+plt.savefig(save_result_folder+f'/traces_20hz_volt_0.04_v3.0.pdf')
 
 #%% Fig 5b
 plt.figure()
@@ -318,9 +350,9 @@ plt.savefig(save_result_folder+'/spatials_20Hz_volt_0.04_v2.0.pdf')
 
 #%%
 streak_save_20 = mov[:, lim_y[0]:lim_y[1], lim_x[0]:lim_x[1]]
-cm.movie(streak_save_20, fr=20).save(save_result_folder +'/streak_movie_20_4.avi')
+cm.movie(streak_save_20, fr=200).save(save_result_folder +'/streak_movie_20_4_200Hz.avi')
 
 #%%
 streak_save_40 = mov[:, lim_y[0]:lim_y[1], lim_x[0]:lim_x[1]]
-cm.movie(streak_save_40, fr=40).save(save_result_folder +'/streak_movie_40_1.avi')
+cm.movie(streak_save_40, fr=400).save(save_result_folder +'/streak_movie_40_1_400Hz.avi')
 

@@ -18,9 +18,9 @@ from utils import random_numbers_with_min_distance, generate_intensity_matrix, p
 #%%
 #date = '5_2_10x'
 #save_dir = r'C:/Users/nico/Desktop/data/beads_' + date
-date = '8_2'
+date = '8_23'
 #save_dir = r'C:/Users/nico/Desktop/data/zebrafish_' + date
-save_dir = r'C:/Users/nico/Desktop/data/test_8_2'
+save_dir = r'C:/Users/nico/Desktop/data/test_8_23'
 fr_orig = 400
 
 save_img_folder = save_dir + '/images'
@@ -101,7 +101,7 @@ plt.tight_layout()
 #%% detect beads through finding local maximum, generate pattern for tageted illumination on the camera
 xy = peak_local_max(im_gaussian, min_distance=30, num_peaks=100, threshold_abs=0.4, exclude_border=False)
 img1 = np.zeros(im.shape)
-radius = 15
+radius = 15 # Changes size of circle around bead.
 for xx in xy:
     cv2.circle(img1, [xx[1], xx[0]], radius, 1, -1)
 print(len(xy))
@@ -295,7 +295,7 @@ play(img_matrix, magnification=0.2)
 
 plt.figure()
 plt.plot(intensity_all[6])
-np.save(save_img_folder+'/intensity.npy', intensity_all)
+#np.save(save_img_folder+'/intensity.npy', intensity_all)
 
 #%% 
 for frame, img1 in enumerate(img_matrix):

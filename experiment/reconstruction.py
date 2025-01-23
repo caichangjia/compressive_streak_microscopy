@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.linalg import cond
 import os
 import random
 from scipy.linalg import norm
@@ -20,8 +21,9 @@ from utils import hals, normalize
 
 #%%
 class Reconstruction:
-    def __init__(self, mov, mov_fixed, locs, cr, volt, base_dir, save_dir, method='ridge', 
-                 ridge_alpha=0.1, lasso_alpha=0.0001, parallel_processing=True, plot=False):
+    def __init__(self, mov, mov_fixed, locs, cr, volt, base_dir, save_dir, method='ridge',
+                 reg_auto=True, cond_threshold=10, ridge_alpha=0.1, lasso_alpha=0.0001, 
+                 parallel_processing=True, plot=False):
         """
         Class to reconstruct high temporal resolution traces from streak movie 
         in beads experiments.        
@@ -77,6 +79,8 @@ class Reconstruction:
         self.cr = cr
         self.volt = volt
         self.method = method
+        self.reg_auto = reg_auto
+        self.cond_threshold = cond_threshold
         self.ridge_alpha = ridge_alpha
         self.lasso_alpha = lasso_alpha
         self.parallel_processing = parallel_processing
@@ -149,7 +153,9 @@ class Reconstruction:
                 plt.savefig(self.save_dir+'\\masks_'+str(nid)+'.png')
             plt.show()
             time.sleep(random.random())
-        
+            
+        #breakpoint()
+        #%matplotlib qt
         # extract traces
         Y = d1.copy().transpose([1, 2, 0])
         A = masks.copy()
@@ -167,6 +173,23 @@ class Reconstruction:
             Y = Y.reshape((-1, Y.shape[-1]))
             C = A.T@Y
         elif self.method == 'ridge':
+            if self.reg_auto:         # automatic selection of ridge regularizer based on condition number
+                ATA = A.T@A    
+                print(f'condition number of ATA is: {cond(ATA)}')    
+                alphas = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000, 10000]
+                conds = []
+                for alpha in alphas:
+                    tmp = ATA + np.diag(np.ones(ATA.shape[0])) * alpha
+                    conds.append(cond(tmp))
+                #np.save(f'/home/nel/CODE/compressive_micro/simulation/result/output/cond_{cr}.npy', conds)
+                ind = np.where(np.array(conds) < self.cond_threshold)[0]
+                if len(ind) > 0:
+                    self.ridge_alpha = alphas[ind[0]]
+                    print(f'select ridge alpha: {self.ridge_alpha}')
+                else:
+                    print('no ridge alpha suitable, use default ridge_alpha')
+                #plt.plot(np.log10(alphas), conds)    
+                
             Y = Y.reshape((-1, Y.shape[-1]))
             ridge = Ridge(alpha=self.ridge_alpha, fit_intercept=False)
             ridge.fit(A, Y)
@@ -204,7 +227,8 @@ class Reconstruction:
     
 class ReconstructionFish:
     def __init__(self, mov, mov_fixed, locs, cr, volt, base_dir, save_dir, method='ridge', 
-                 ridge_alpha=0.1, lasso_alpha=0.0001, parallel_processing=True, plot=False):
+                 reg_auto=True, cond_threshold=10, ridge_alpha=0.1, lasso_alpha=0.0001, 
+                 parallel_processing=True, plot=False):
         """
         Class to reconstruct high temporal resolution traces from streak movie 
         in fish experiments.        
@@ -266,6 +290,8 @@ class ReconstructionFish:
         self.cr = cr
         self.volt = volt
         self.method = method
+        self.reg_auto = reg_auto
+        self.cond_threshold = cond_threshold 
         self.ridge_alpha = ridge_alpha
         self.lasso_alpha = lasso_alpha
         self.parallel_processing = parallel_processing
@@ -302,7 +328,7 @@ class ReconstructionFish:
         H = H.reshape((d2.shape[1], d2.shape[2]))
         h = H.copy()
         h = (h - h.min()) / (h.max() - h.min())
-        h[h < h.max() * 0.6] = 0        
+        h[h < h.max() * 0.6] = 0  # need to change depending on neuron size      
         
         # remove extra components when necessary
         labeled_array, num_features = label(h)
@@ -373,6 +399,22 @@ class ReconstructionFish:
             Y = Y.reshape((-1, Y.shape[-1]))
             C = A.T@Y
         elif self.method == 'ridge':
+            if self.reg_auto:         # automatic selection of ridge regularizer based on condition number
+                ATA = A.T@A    
+                print(f'condition number of ATA is: {cond(ATA)}')    
+                alphas = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000, 10000]
+                conds = []
+                for alpha in alphas:
+                    tmp = ATA + np.diag(np.ones(ATA.shape[0])) * alpha
+                    conds.append(cond(tmp))
+                #np.save(f'/home/nel/CODE/compressive_micro/simulation/result/output/cond_{cr}.npy', conds)
+                ind = np.where(np.array(conds) < self.cond_threshold)[0]
+                if len(ind) > 0:
+                    self.ridge_alpha = alphas[ind[0]]
+                    print(f'select ridge alpha: {self.ridge_alpha}')
+                else:
+                    print('no ridge alpha suitable, use default ridge_alpha')
+                #plt.plot(np.log10(alphas), conds)    
             Y = Y.reshape((-1, Y.shape[-1]))
             ridge = Ridge(alpha=self.ridge_alpha, fit_intercept=False)
             ridge.fit(A, Y)
@@ -382,7 +424,7 @@ class ReconstructionFish:
             lasso = Lasso(alpha=self.lasso_alpha, fit_intercept=False)
             lasso.fit(A, Y)
             C = lasso.coef_.T
-                    
+                            
         #%% reshape traces and normalize
         Cf = C.copy()
         C_result = []

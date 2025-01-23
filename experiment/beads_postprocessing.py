@@ -17,6 +17,7 @@ from utils import normalize, pnr, register_translation, compute_lag
 
 mpl.rcParams.update({'pdf.fonttype' : 42, 
                      'ps.fonttype' : 42, 
+                     'font.size' : 18, 
                      'legend.frameon' : False, 
                      'axes.spines.right' :  False, 
                      'axes.spines.top' : False, 
@@ -153,6 +154,11 @@ plt.subplot(2, 3, 4, aspect='equal')
 plt.imshow(pixels[500-b:1600+b, 400-b:2400+b], cmap='gray', vmax=np.percentile(pixels, 99.8))
 #plt.gca().add_patch(Rectangle((c[0], c[1]), 300, 300, edgecolor='red', facecolor='None'))
 plt.scatter(xy[:, 1]-(400-b), xy[:, 0]-(500-b), color='red', s=0.5)
+#for i in range(len(xy)):
+for idx, i in enumerate([74, 15, 30, 36]):
+    plt.text(xy[i, 1]-(400-b), xy[i, 0]-(500-b), idx)
+
+
 plt.xlim([c[0], c[0]+w[0]])
 plt.ylim([c[1], c[1]+w[1]])
 plt.gca().invert_yaxis()
@@ -212,36 +218,19 @@ tt = 3
 volt = 0.08
 
 method = 'ridge'
-for ridge_alpha in [0, 1e-3, 1e-2, 1e-1, 1, 10, 100]:
-    traces = []
-    for i, cr in enumerate([10, 15, 20, 25]):
-        f_streak = save_dir + f'\\cr_{cr}_1\\cr_{cr}_NDTiffStack.tif'
-        mov = io.imread(f_streak)
-        name = f'\\cr_{cr}_1'
-        print(cr)
-        print(volt)
-        rec = Reconstruction(mov, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
-                              save_dir=save_dir + name + '\\reconstruction', 
-                              method=method, ridge_alpha=ridge_alpha, plot=False)
-        traces.append(rec.reconstruct_traces())
-    traces = np.array(traces)    
-    #np.save(save_dir + f'\\cr_{cr}_1\\reconstruction\\traces_ridge_{ridge_alpha}.npy', traces)
-    
-method = 'lasso'
-for lasso_alpha in [1e-5, 1e-4, 1e-3, 1e-2]:
-    traces = []
-    for i, cr in enumerate([10, 15, 20, 25]):
-        f_streak = save_dir + f'\\cr_{cr}_1\\cr_{cr}_NDTiffStack.tif'
-        mov = io.imread(f_streak)
-        name = f'\\cr_{cr}_1'
-        print(cr)
-        print(volt)
-        rec = Reconstruction(mov, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
-                              save_dir=save_dir + name + '\\reconstruction',
-                              method=method, ridge_alpha=lasso_alpha, plot=False)
-        traces.append(rec.reconstruct_traces())
-    traces = np.array(traces)    
-    #np.save(save_dir + f'\\cr_{cr}_1\\reconstruction\\traces_lasso_{lasso_alpha}.npy', traces)
+traces = []
+for i, cr in enumerate([10, 15, 20, 25]):
+    f_streak = save_dir + f'\\cr_{cr}_1\\cr_{cr}_NDTiffStack.tif'
+    mov = io.imread(f_streak)
+    name = f'\\cr_{cr}_1'
+    print(cr)
+    print(volt)
+    rec = Reconstruction(mov, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
+                          save_dir=save_dir + name + '\\reconstruction', 
+                          method=method, plot=False)
+    traces.append(rec.reconstruct_traces())
+traces = np.array(traces)    
+np.save(save_dir + f'\\result\\cr_traces_ridge_reg_auto.npy', traces)
 
 #%% performance vs volt, weighted and nmf
 f_streak = save_dir + '\\volt_cr_10_1\\volt_cr_10_NDTiffStack.tif'
@@ -254,14 +243,17 @@ tps = 0
 cr = 10
 method='weighted'
 for i, volt in enumerate([0.02, 0.04, 0.06, 0.08, 0.1]):
+#for i, volt in enumerate([0.04]):
+
     print(cr)
     print(volt)
     m = mov[tps : tps + int(tt * fr_orig / cr)]
     rec = Reconstruction(m, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
                           save_dir=save_dir + name + '\\reconstruction', method=method, plot=False)
-    traces.append(rec.reconstruct_traces())
+    rec.reconstruct_single_trace(nid=0)
+#     traces.append(rec.reconstruct_traces())
     tps = tps + int(tt * fr_orig / cr)
-traces = np.array(traces)
+# traces = np.array(traces)
 #np.save('C:/Users/nico/Desktop/data/fluo_beads_1_13/volt_cr_10_1/reconstruction/traces_weighted.npy', traces)
 
 
@@ -272,38 +264,20 @@ name = '\\volt_cr_10_1'
 tt = 3
 cr = 10
 method = 'ridge'
-for ridge_alpha in [0]:
-    print(f'ridge_alpha euqal {ridge_alpha}')
-    traces = []
-    tps = 0
-    for i, volt in enumerate([0.02, 0.04, 0.06, 0.08, 0.1]):
-        print(cr)
-        print(volt)
-        m = mov[tps : tps + int(tt * fr_orig / cr)]
-        rec = Reconstruction(m, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
-                              save_dir=save_dir + name + '\\reconstruction', 
-                              method=method, ridge_alpha=ridge_alpha, plot=False)
-        traces.append(rec.reconstruct_traces())
-        tps = tps + int(tt * fr_orig / cr)
-    traces = np.array(traces)
-    #np.save(f'C:/Users/nico/Desktop/data/fluo_beads_1_13/volt_cr_10_1/reconstruction/traces_ridge_{ridge_alpha}.npy', traces)
-    
-method = 'lasso'
-for lasso_alpha in [1e-5, 1e-6]:
-    print(f'lasso_alpha euqal {lasso_alpha}')
-    traces = []
-    tps = 0
-    for i, volt in enumerate([0.02, 0.04, 0.06, 0.08, 0.1]):
-        print(cr)
-        print(volt)
-        m = mov[tps : tps + int(tt * fr_orig / cr)]
-        rec = Reconstruction(m, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
-                              save_dir=save_dir + name + '\\reconstruction', 
-                              method=method, lasso_alpha=lasso_alpha, plot=False)
-        traces.append(rec.reconstruct_traces())
-        tps = tps + int(tt * fr_orig / cr)
-    traces = np.array(traces)
-    #np.save(f'C:/Users/nico/Desktop/data/fluo_beads_1_13/volt_cr_10_1/reconstruction/traces_lasso_{lasso_alpha}.npy', traces)
+traces = []
+tps = 0
+for i, volt in enumerate([0.02, 0.04, 0.06, 0.08, 0.1]):
+    print(cr)
+    print(volt)
+    m = mov[tps : tps + int(tt * fr_orig / cr)]
+    rec = Reconstruction(m, mov_fixed, locs=xy, cr=cr, volt=volt, base_dir=save_dir, 
+                          save_dir=save_dir + name + '\\reconstruction', 
+                          method=method, plot=False)
+    traces.append(rec.reconstruct_traces())
+    tps = tps + int(tt * fr_orig / cr)
+traces = np.array(traces)
+np.save(f'C:/Users/nico/Desktop/data/fluo_beads_1_13/result/volt_traces_ridge_reg_auto.npy', traces)
+   
 
 #%% performance vs intensity, weighted and nmf
 f_streak = save_dir + '\\intensity_cr_10_1\\intensity_cr_10_NDTiffStack.tif'
@@ -321,27 +295,16 @@ f_streak = save_dir + '\\intensity_cr_10_1\\intensity_cr_10_NDTiffStack.tif'
 mov = io.imread(f_streak)
 name = '\\intensity_cr_10_1'
 method = 'ridge'
-for ridge_alpha in [0, 1e-3, 1e-2, 1e-1, 1, 10, 100]:
-    print(f'ridge_alpha euqal {ridge_alpha}')
-    rec = Reconstruction(mov, mov_fixed, locs=xy, cr=10, volt=0.08, base_dir=save_dir,
-                          save_dir=save_dir + name + '\\reconstruction', 
-                          method=method, ridge_alpha=ridge_alpha, plot=False)
-    traces = rec.reconstruct_traces()
-    traces = traces.reshape((traces.shape[0], 5, -1))
-    traces = traces.transpose([1, 0, 2])
-    np.save('C:/Users/nico/Desktop/data/fluo_beads_1_13/intensity_cr_10_1/reconstruction/'
-            + f'inten_traces_{method}_{ridge_alpha}.npy', traces)
+rec = Reconstruction(mov, mov_fixed, locs=xy, cr=10, volt=0.08, base_dir=save_dir,
+                      save_dir=save_dir + name + '\\reconstruction', 
+                      method=method, plot=False)
+traces = rec.reconstruct_traces()
+traces = traces.reshape((traces.shape[0], 5, -1))
+traces = traces.transpose([1, 0, 2])
+np.save('C:/Users/nico/Desktop/data/fluo_beads_1_13/result/'
+        + f'inten_traces_ridge_reg_auto.npy', traces)
 
-method='lasso'
-for lasso_alpha in [1e-5, 1e-4, 1e-3, 1e-2]:
-    rec = Reconstruction(mov, mov_fixed, locs=xy, cr=10, volt=0.08, base_dir=save_dir,
-                          save_dir=save_dir + name + '\\reconstruction', 
-                          method=method, lasso_alpha=lasso_alpha, plot=False)
-    traces = rec.reconstruct_traces()
-    traces = traces.reshape((traces.shape[0], 5, -1))
-    traces = traces.transpose([1, 0, 2])
-    np.save('C:/Users/nico/Desktop/data/fluo_beads_1_13/intensity_cr_10_1/reconstruction/'
-            + f'inten_traces_{method}_{lasso_alpha}.npy', traces)
+
 
 #%% Fig 4 e, f, g, performance under different LED power, compression ratio, galvo max voltage
 #compute three metrics: corr, F1, pnr , only show corr in the paper
@@ -353,20 +316,9 @@ intensity_all = np.load(save_img_folder+'/intensity.npy') # intensity matrix con
 #                       'C:/Users/nico/Desktop/data/fluo_beads_1_13/result/inten_traces_weighted.npy'][4])
 
 for method in ['ridge']:
-    if method == 'ridge':
-        params = [1e-1]
-    elif method == 'lasso':
-        params = [1e-5, 1e-4, 1e-3, 1e-2]
-    for param in params:
+    for test in ['volt', 'cr', 'inten']:
         print(method)
-        print(param)
-        #traces_all = np.load('C:/Users/nico/Desktop/data/fluo_beads_1_13/volt_cr_10_1/reconstruction' + 
-        #                             f'/traces_{method}_{param}.npy')
-        # traces_all = np.load('C:/Users/nico/Desktop/data/fluo_beads_1_13/intensity_cr_10_1/reconstruction/'
-        #         + f'inten_traces_{method}_{param}.npy')
-        traces_all = np.load('C:/Users/nico/Desktop/data/fluo_beads_1_13/cr_25_1/reconstruction/'
-                + f'traces_{method}_{param}.npy')
-        #traces_all = np.load('C:/Users/nico/Desktop/data/fluo_beads_1_13/result/cr_traces_weighted.npy')
+        traces_all = np.load(f'C:/Users/nico/Desktop/data/fluo_beads_1_13/result/{test}_traces_ridge_reg_auto.npy')
         
         results = []
         for i, traces in enumerate(traces_all):
@@ -399,25 +351,8 @@ for method in ['ridge']:
                     peaks, _ = find_peaks(x, height=1.5, distance=2)
                     idx1, idx2 = match_spikes_greedy(gt_peaks, peaks, max_dist=4)
                     F1, precision, recall = compute_F1(gt_peaks, peaks, idx1, idx2)
-                    pnr = np.mean(x[gt_peaks])
+                    pnr = np.mean(x[gt_peaks])                   
                     
-                    
-                    if (nid == 0) and (i == 0):
-                        breakpoint()
-                        plt.figure()
-                        plt.plot(x)
-                        plt.plot(gt1-6, c='orange')
-                        
-                        plt.plot()
-                        plt.xlim(200, 400)
-                        plt.title(f'neuron:{nid}, F1:{np.round(F1, 2)}, corr:{np.round(corr, 2)}')#, pnr:{np.round(pnr[nid], 2)}')
-                        plt.hlines(0, 200, 240, colors='black')
-                        plt.text(200, 0, '0.1s')
-                        plt.legend(['reconstructed', 'groundtruth'])
-                        plt.axis('off')
-                        plt.savefig('C:/Users/nico/Desktop/data/fluo_beads_1_13/result/figs/example_traces_v2.0.pdf')
-                        plt.show()
-                    #print(f'F1: {F1}, precision: {precision}, recall: {recall}')
         
                     result['corr'].append(corr)
                     result['F1'].append(F1)
@@ -426,16 +361,100 @@ for method in ['ridge']:
                     result['pnr'].append(pnr)                
                 
             results.append(result)
-        #np.save(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', results)
-        #np.save(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', results)
-        #np.save(save_result_folder+f'/cr_{method}_{param}_v1.0.npy', results)
-        #np.save(save_result_folder+f'/cr_{method}_v1.0.npy', results)
+        np.save(save_result_folder+f'/{test}_ridge_reg_auto_v2.0.npy', results)
+    
+#%%
+from matplotlib.gridspec import GridSpec
+plt.figure(figsize=(16.54, 4), constrained_layout=True)
+gs = GridSpec(1, 4)
+plt.subplot(gs[0, 0])
 
-        #np.save(save_result_folder+f'/cr_v1.0.npy', results)
+C_result = np.load(f'C:/Users/nico/Desktop/data/fluo_beads_1_13/result/cr_traces_ridge_reg_auto.npy')[0] # cr = 10
+intensity = np.load(save_img_folder+'/intensity.npy')
+lags = []
+for nid in range(5):
+    lags.append(compute_lag(C_result, intensity, nid))
+print(lags)
+assert len(np.unique(lags)) == 1
+lag = lags[0]
 
+plt.text(280, 21, 'Neuron #')
+for i, j in enumerate([74, 15, 30, 36]):#np.arange(0, 18)):
+    gt = intensity[j]
+    tp = C_result.shape[1]
+    tp_short = gt.shape[0]
+    gt = np.array([gt]*(tp//gt.shape[0]+2)).reshape(-1)
+    gt1 = gt[-lag:-lag+tp]
+
+    plt.plot(normalize(C_result[j]) + 6*i, color='C0', alpha=1)
+    plt.plot(normalize(gt1) + 6*i, color='black', alpha=0.5)
+    plt.text(285, 6*i, f'{i}')
+    plt.xlim([300, 370])
+    plt.axis('off')
+    plt.plot(range(300, 320), [-3] * 20, color='black')
+    plt.text(302, -6, '0.05s', color='black')
+    plt.vlines(298, -0.5, 0.5, color='black', clip_on=False)
+    plt.text(292, -2, '1 unit', rotation='vertical')
+plt.legend(['Reconstructed (Ridge)', 'Reference'], fontsize=14, loc='lower right')
+
+# ax = plt.gca()
+# pos = ax.get_position()  # Get the original position
+# ax.set_position([pos.x0, pos.y0, pos.width*1.2, pos.height])  # Adjust position
+
+
+
+data = {}
+ylabels = ['Corr', 'SPNR', 'F1']
+cc = ['navy', 'lightsteelblue', 'gray']
+
+for ii, test in enumerate(['inten', 'cr', 'volt']):
+    if ii == 0:
+        plt.subplot(gs[0, 1])
+    if ii == 1:
+        plt.subplot(gs[0, 2])
+    if ii == 2:
+        plt.subplot(gs[0, 3])
+    metric = 'corr'
+        
+    for method in ['ridge', 'weighted', 'nmf']:
+        if method == 'ridge':
+            results = np.load(save_result_folder+f'/{test}_{method}_reg_auto_v2.0.npy', allow_pickle=True)
+        else:
+            results = np.load(save_result_folder+f'/{test}_{method}_v1.0.npy', allow_pickle=True)
+        rr = np.array([r[metric] for r in results])
+        data[f'{method}'] = rr
+        
+    xx = np.arange(1, data['ridge'].shape[0]+1)
+    ax = plt.gca()
+    bps = []
+    for i, key in enumerate(data.keys()):
+        rr = data[key]
+        #if key == 'nmf':   # remove that column of nmf due to fail to reconstruct
+        #    rr[0] = np.nan
+        bplot = ax.boxplot(rr.T, positions=xx+(i-1)*0.2, widths=0.2, patch_artist=True)
+        for patch in bplot['boxes']:
+            patch.set_facecolor(cc[i])    
+        bps.append(bplot)
+            
+    plt.ylabel('Correlation')
+    if test == 'inten':
+        plt.xlabel('LED driver voltage (V)')
+        plt.xticks([1, 2, 3, 4, 5], ['0.25', '0.5', '0.75', '1.0', 1.25])
+        plt.yticks([0.3, 0.5, 0.7, 0.9])
+        plt.legend([bps[0]["boxes"][0], bps[1]["boxes"][0], bps[2]["boxes"][0]], ['Ridge', 'Weighted', 'NMF'], fontsize=14)
+    elif test == 'cr':
+        plt.xlabel('Compression ratio')
+        plt.xticks([1, 2, 3, 4], [10, 15, 20, 25])
+    elif test == 'volt':
+        plt.xlabel('Galvo maximum \n voltage (mV)')
+        plt.xticks([1, 2, 3, 4, 5], [20, 40, 60, 80, 100])
+    
+plt.tight_layout()
+plt.savefig('C:/Users/nico/Desktop/data/fluo_beads_1_13/result/figs/performance_v3.0.pdf')
 
 #%% Fig 4e extended
 data = {}
+cc = ['navy', 'lightsteelblue', 'gray']
 plt.figure(figsize=(14, 4))
 for ii, mid in enumerate([0, 1, -1]):
     plt.subplot(1, 3, ii+1)
@@ -445,21 +464,10 @@ for ii, mid in enumerate([0, 1, -1]):
     
     for method in ['ridge', 'weighted', 'nmf']:
         if method == 'ridge':
-            params = [1e-1]
-            for param in params:
-                #results = np.load(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', allow_pickle=True)
-                results = np.load(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', allow_pickle=True)
-                rr = np.array([r[metric] for r in results])
-                data[f'{method}_{param}'] = rr
-        elif method == 'lasso':
-            params = [1e-5, 1e-4, 1e-3, 1e-2]
-            for param in params:
-                #results = np.load(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', allow_pickle=True)
-                results = np.load(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', allow_pickle=True)
-                rr = np.array([r[metric] for r in results])
-                data[f'{method}_{param}'] = rr
+            results = np.load(save_result_folder+f'/inten_{method}_reg_auto_v2.0.npy', allow_pickle=True)
+            rr = np.array([r[metric] for r in results])
+            data[f'{method}'] = rr
         else:
-            #results = np.load(save_result_folder+f'/volt_{method}_v1.0.npy', allow_pickle=True)
             results = np.load(save_result_folder+f'/inten_{method}_v1.0.npy', allow_pickle=True)
             rr = np.array([r[metric] for r in results])
             data[f'{method}'] = rr
@@ -489,25 +497,11 @@ for ii, mid in enumerate([0, 1, -1]):
     
     for method in ['ridge', 'weighted', 'nmf']:
         if method == 'ridge':
-            params = [1e-1]
-            for param in params:
-                #results = np.load(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', allow_pickle=True)
-                #results = np.load(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', allow_pickle=True)
-                results = np.load(save_result_folder+f'/cr_{method}_{param}_v1.0.npy', allow_pickle=True)
-                rr = np.array([r[metric] for r in results])
-                data[f'{method}_{param}'] = rr
-        elif method == 'lasso':
-            params = [1e-5, 1e-4, 1e-3, 1e-2]
-            for param in params:
-                #results = np.load(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', allow_pickle=True)
-                #results = np.load(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', allow_pickle=True)
-                results = np.load(save_result_folder+f'/cr_{method}_{param}_v1.0.npy', allow_pickle=True)
-                rr = np.array([r[metric] for r in results])
-                data[f'{method}_{param}'] = rr
+            results = np.load(save_result_folder+f'/cr_{method}_reg_auto_v2.0.npy', allow_pickle=True)
         else:
             results = np.load(save_result_folder+f'/cr_{method}_v1.0.npy', allow_pickle=True)
-            rr = np.array([r[metric] for r in results])
-            data[f'{method}'] = rr
+        rr = np.array([r[metric] for r in results])
+        data[f'{method}'] = rr
 
     xx = np.array([1, 2, 3, 4])
     ax = plt.gca()
@@ -521,7 +515,7 @@ for ii, mid in enumerate([0, 1, -1]):
     plt.xlabel('Compression Ratio')
     plt.xticks([1, 2, 3, 4], [10, 15, 20, 25])
     plt.tight_layout()
-    plt.savefig('C:/Users/nico/Desktop/data/fluo_beads_1_13/result/figs/performance_compression_ratio_v2.0.pdf')
+    #plt.savefig('C:/Users/nico/Desktop/data/fluo_beads_1_13/result/figs/performance_compression_ratio_v2.0.pdf')
     
 #%% Fig 4g extended
 data = {}
@@ -530,10 +524,8 @@ ylabels = ['Corr', 'SPNR', 'F1']
 cc = ['navy', 'lightsteelblue', 'gray']
 
 plt.figure(figsize=(14, 4))
-#plt.figure(figsize=(36, 4))
+
 for ii, mid in enumerate([0, 1, -1]):
-#for ii, mid in enumerate([1, 2, 3]):
-    
     plt.subplot(1, 3, ii+1)
     metrics = ['corr', 'F1', 'pr', 're', 'pnr']
     metric = metrics[mid]
@@ -542,24 +534,11 @@ for ii, mid in enumerate([0, 1, -1]):
     #method=['nmf', 'weighted'][0]
     for method in ['ridge', 'weighted', 'nmf']:
         if method == 'ridge':
-            params = [1e-1]
-            for param in params:
-                results = np.load(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', allow_pickle=True)
-                #results = np.load(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', allow_pickle=True)
-                rr = np.array([r[metric] for r in results])
-                data[f'{method}_{param}'] = rr
-        elif method == 'lasso':
-            params = [1e-5, 1e-4, 1e-3, 1e-2]
-            for param in params:
-                results = np.load(save_result_folder+f'/volt_{method}_{param}_v1.0.npy', allow_pickle=True)
-                #results = np.load(save_result_folder+f'/inten_{method}_{param}_v1.0.npy', allow_pickle=True)
-                rr = np.array([r[metric] for r in results])
-                data[f'{method}_{param}'] = rr
+            results = np.load(save_result_folder+f'/volt_{method}_reg_auto_v2.0.npy', allow_pickle=True)
         else:
             results = np.load(save_result_folder+f'/volt_{method}_v1.0.npy', allow_pickle=True)
-            #results = np.load(save_result_folder+f'/inten_{method}_v1.0.npy', allow_pickle=True)
-            rr = np.array([r[metric] for r in results])
-            data[f'{method}'] = rr
+        rr = np.array([r[metric] for r in results])
+        data[f'{method}'] = rr
             
     ax = plt.gca()
     for i, key in enumerate(data.keys()):
@@ -614,5 +593,5 @@ plt.xticks([1, 2, 3, 4], ['0.04', '0.06', '0.08', '0.10'])
 #plt.ylim([0, 1])
 
 plt.tight_layout()
-plt.savefig(save_result_folder+f'/performance_v1.2_{metric}.pdf')
+#plt.savefig(save_result_folder+f'/performance_v1.2_{metric}.pdf')
 
